@@ -1,5 +1,5 @@
 ## My Profile
-oh-my-posh init pwsh --config 'C:\Users\User\AppData\Local\Programs\oh-my-posh\themes\nordtron.omp.json' | Invoke-Expression
+oh-my-posh init pwsh --config 'C:\Users\Kavin\AppData\Local\Programs\oh-my-posh\themes\nordtron.omp.json' | Invoke-Expression
 # Add auto complete (requires PSReadline 2.2.0-beta1+ prerelease)
 Set-PSReadLineOption -PredictionSource History
 Set-PSReadLineOption -PredictionViewStyle ListView
