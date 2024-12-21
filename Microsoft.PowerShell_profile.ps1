@@ -1,5 +1,5 @@
 ## My Profile
-oh-my-posh init pwsh --config 'C:\Users\Kavin\AppData\Local\Programs\oh-my-posh\themes\nordtron.omp.json' | Invoke-Expression
+oh-my-posh init pwsh --config "$env:LOCALAPPDATA\Programs\oh-my-posh\themes\nordtron.omp.json" | Invoke-Expression
 # Add auto complete (requires PSReadline 2.2.0-beta1+ prerelease)
 Set-PSReadLineOption -PredictionSource History
 Set-PSReadLineOption -PredictionViewStyle ListView
@@ -101,9 +101,13 @@ function admin {
     }
 }
 
-Set-Alias -Name sudo -Value admin
+# Set-Alias -Name sudo -Value admin
 
 Set-Alias -Name whr -Value where.exe
+
+Set-Alias -Name pm -Value pnpm
+
+Set-Alias -Name yn -Value yarn
 
 ## ChrisTitus Aliases
 function ff($name) {
