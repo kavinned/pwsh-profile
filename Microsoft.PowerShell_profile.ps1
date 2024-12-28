@@ -182,11 +182,30 @@ function export($name, $value) {
     set-item -force -path "env:$name" -value $value;
 }
 
+function pfind {
+    param (
+        [Parameter(Mandatory = $true)]
+        [int]$port
+    )
+
+    # Run netstat and filter with grep
+    $result = netstat -ano | grep ":$port\s"
+
+    # Check if there are any matches
+    if ($result) {
+        $result
+    } else {
+        Write-Host "No port with $port found."
+    }
+}
+
 function pkill($identifier) {
     if ($identifier -match '^\d+$') {
         Get-Process -Id $identifier -ErrorAction SilentlyContinue | Stop-Process
+		Write-Host "Process ($identifier) Succesfully Killed!"
     } else {
         Get-Process $identifier -ErrorAction SilentlyContinue | Stop-Process
+		Write-Host "Process ($identifier) Succesfully Killed!"
     }
 }
 
