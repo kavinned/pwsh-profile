@@ -7,6 +7,8 @@ echo Profile copied successfully!
 
 echo.
 
+git diff
+
 set /p pushit=Do you want to push to GitHub? (y/n):
 if /i "%pushit%" neq "y" goto :eof
 
