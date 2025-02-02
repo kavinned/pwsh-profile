@@ -1,393 +1,185 @@
-## My Profile
+# Load Oh-My-Posh Theme
 oh-my-posh init pwsh --config "$env:LOCALAPPDATA\Programs\oh-my-posh\themes\nordtron.omp.json" | Invoke-Expression
-# Add auto complete (requires PSReadline 2.2.0-beta1+ prerelease)
-Set-PSReadLineOption -PredictionSource History
-Set-PSReadLineOption -PredictionViewStyle ListView
-Set-PSReadLineOption -EditMode Windows
+
+# Improve PSReadline Autocomplete
+Set-PSReadLineOption -PredictionSource History -PredictionViewStyle ListView -EditMode Windows
+
+# Lazy Load Modules
 Import-Module -Name Terminal-Icons
+if (!(Get-Module -ListAvailable -Name Microsoft.WinGet.CommandNotFound)) {
+    Import-Module -Name Microsoft.WinGet.CommandNotFound
+}
 Invoke-Expression (&scoop-search --hook)
 
+# Functions
 function Clear-Cache {
-    # add clear cache logic here
     Write-Host "Clearing cache..." -ForegroundColor Cyan
 
-    # Clear Windows Prefetch
     Write-Host "Clearing Windows Prefetch..." -ForegroundColor Yellow
     Remove-Item -Path "$env:SystemRoot\Prefetch\*" -Force -ErrorAction SilentlyContinue
 
-    # Clear Windows Temp
     Write-Host "Clearing Windows Temp..." -ForegroundColor Yellow
     Remove-Item -Path "$env:SystemRoot\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
 
-    # Clear User Temp
     Write-Host "Clearing User Temp..." -ForegroundColor Yellow
     Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
 
-    # Clear Internet Explorer Cache
     Write-Host "Clearing Internet Explorer Cache..." -ForegroundColor Yellow
     Remove-Item -Path "$env:LOCALAPPDATA\Microsoft\Windows\INetCache\*" -Recurse -Force -ErrorAction SilentlyContinue
 
     Write-Host "Cache clearing completed." -ForegroundColor Green
 }
 
-function shutdown {
-    Start-Process "shutdown.exe" -ArgumentList "-s -t 00"
-}
+function shutdown { Start-Process "shutdown.exe" -ArgumentList "-s -t 00" }
+function restart { Start-Process "shutdown.exe" -ArgumentList "-r -t 00" }
+function abort { Start-Process "shutdown.exe" -ArgumentList "-a" }
+function slp { Start-Process "C:\Users\User\Desktop\sleep.lnk"; exit }
 
-function restart {
-    Start-Process "shutdown.exe" -ArgumentList "-r -t 00"
-}
+# Navigation Shortcuts
+function idocs { Set-Location "$HOME\Documents\_Important Documents" }
+function cdocs { Set-Location "$HOME\Documents\_Important Documents\coding" }
+function docs { Set-Location "$HOME\Documents" }
+function dtop { Set-Location "$HOME\Desktop" }
 
-function slp {
-	Start-Process "C:\Users\User\Desktop\sleep.lnk"
-	exit
-}
+# File Operations
+function touch { param([string[]]$Files) foreach ($file in $Files) { if (!(Test-Path $file)) { "" | Out-File -FilePath $file; Write-Host "Created: $file" } } }
+function open { param([string]$Dir) explorer.exe $Dir }
+function nf { param([string]$name) New-Item -ItemType "file" -Path . -Name $name }
+function mkcd { param([string]$dir) mkdir $dir -Force; Set-Location $dir }
+function unzip { param([string]$file) Expand-Archive -Path $file }
 
-function abort {
-    Start-Process "shutdown.exe" -ArgumentList "-a"
-}
-
-Set-Alias npp "C:\Program Files\Notepad++\notepad++.exe" 
-
-function shizuku($args) {
-    adb $args shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.sh
-}
-
-function idocs { Set-Location -Path "$HOME\Documents\_Important Documents" }
-
-function cdocs { Set-Location -Path "$HOME\Documents\_Important Documents\coding" }
-
-function touch {
-    param(
-        [Parameter(Mandatory=$true, ValueFromRemainingArguments=$true)]
-        [string[]]$Files
-    )
-
-    foreach ($file in $Files) {
-        if (!(Test-Path $file)) {
-            "" | Out-File -FilePath $file -Encoding ASCII
-            Write-Host "Created file: $file"
-        } else {
-            Write-Host "File already exists: $file"
-        }
-    }
-}
-
-function open {
-#open the directory in file explorer
-    param(
-        [Parameter(Mandatory=$true, ValueFromRemainingArguments=$true)]
-        [string[]]$Dir
-    )
-    explorer.exe $Dir
-}
-
-function ep { nano $PROFILE } # Requires Nano for windows
-
-function nep { npp $PROFILE} # Requires Notepad++
-
-function source { & $PROFILE }
-
-function df { get-volume }
-
-function admin {
-    if ($args.Count -gt 0) {
-        $cmd = $args -join ' '
-        $fullCommand = "Write-Host 'Executing: $args'; $cmd; Write-Host 'Done'"
-        $encodedCommand = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($fullCommand))
-        Start-Process wt -Verb runAs -ArgumentList "pwsh.exe -NoExit -EncodedCommand $encodedCommand"
-    } else {
-        Start-Process wt -Verb runAs
-    }
-}
-
-# Set-Alias -Name sudo -Value admin
-
-Set-Alias -Name whr -Value where.exe
-
-Set-Alias -Name pm -Value pnpm
-
-Set-Alias -Name yn -Value yarn
-
-## ChrisTitus Aliases
-function ff($name) {
-    Get-ChildItem -recurse -filter "*${name}*" -ErrorAction SilentlyContinue | ForEach-Object {
-        Write-Output "$($_.FullName)"
-    }
-}
-
-# Network Utilities
-function Get-PubIP { (Invoke-WebRequest http://ifconfig.me/ip).Content }
-
-# Open WinUtil
-function winutil {
-	iwr -useb https://christitus.com/win | iex
-}
-
+# System Operations
+function df { Get-Volume }
+function sysinfo { Get-ComputerInfo }
+function flushdns { Clear-DnsClientCache; Write-Host "DNS cache flushed" }
 function uptime {
     if ($PSVersionTable.PSVersion.Major -eq 5) {
-        Get-WmiObject win32_operatingsystem | Select-Object @{Name='LastBootUpTime'; Expression={$_.ConverttoDateTime($_.lastbootuptime)}} | Format-Table -HideTableHeaders
+        Get-WmiObject win32_operatingsystem | Select-Object @{Name='LastBootUpTime'; Expression={$_.ConverttoDateTime($_.lastbootuptime)}}
     } else {
         net statistics workstation | Select-String "since" | ForEach-Object { $_.ToString().Replace('Statistics since ', '') }
     }
 }
-
-function unzip ($file) {
-    Write-Output("Extracting", $file, "to", $pwd)
-    $fullFile = Get-ChildItem -Path $pwd -Filter $file | ForEach-Object { $_.FullName }
-    Expand-Archive -Path $fullFile -DestinationPath $pwd
+function shizuku($args) { 
+adb $args shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.sh
 }
-function hb {
-    if ($args.Length -eq 0) {
-        Write-Error "No file path specified."
-        return
-    }
-    
-    $FilePath = $args[0]
-    
-    if (Test-Path $FilePath) {
-        $Content = Get-Content $FilePath -Raw
-    } else {
-        Write-Error "File path does not exist."
-        return
-    }
-    
-    $uri = "http://bin.christitus.com/documents"
-    try {
-        $response = Invoke-RestMethod -Uri $uri -Method Post -Body $Content -ErrorAction Stop
-        $hasteKey = $response.key
-        $url = "http://bin.christitus.com/$hasteKey"
-        Write-Output $url
-    } catch {
-        Write-Error "Failed to upload the document. Error: $_"
-    }
-}
-function grep($regex, $dir) {
-    if ( $dir ) {
-        Get-ChildItem $dir | select-string $regex
-        return
-    }
-    $input | select-string $regex
-}
+function ep { nano $PROFILE }
+function nep { npp $PROFILE }
+function source { . $PROFILE }
+function Get-PubIP { Invoke-RestMethod -Uri "http://api.ipify.org" }
+function winutil { iwr -useb https://christitus.com/win | iex }
 
-function sed($file, $find, $replace) {
-    (Get-Content $file).replace("$find", $replace) | Set-Content $file
-}
+# Process Management
+function admin { param([string]$cmd) Start-Process wt -Verb runAs -ArgumentList "pwsh.exe -NoExit -Command $cmd" }
+function pkill { param([string]$identifier) Stop-Process -Name $identifier -Force }
+function pgrep { param([string]$name) Get-Process -Name $name }
+function pfind { param([int]$port) netstat -ano | Select-String ":$port\\s" }
+function k9 { param([string]$process) Stop-Process -Name $process -Force }
 
-function which($name) {
-    Get-Command $name | Select-Object -ExpandProperty Definition
-}
-
-function export($name, $value) {
-    set-item -force -path "env:$name" -value $value;
-}
-
-function pfind {
-    param (
-        [Parameter(Mandatory = $true)]
-        [int]$port
-    )
-
-    # Run netstat and filter with grep
-    $result = netstat -ano | grep ":$port\s"
-
-    # Check if there are any matches
-    if ($result) {
-        $result
-    } else {
-        Write-Host "No port with $port found."
-    }
-}
-
-function pkill($identifier) {
-    if ($identifier -match '^\d+$') {
-        Get-Process -Id $identifier -ErrorAction SilentlyContinue | Stop-Process
-		Write-Host "Process ($identifier) Succesfully Killed!"
-    } else {
-        Get-Process $identifier -ErrorAction SilentlyContinue | Stop-Process
-		Write-Host "Process ($identifier) Succesfully Killed!"
-    }
-}
-
-function pgrep($name) {
-    Get-Process $name
-}
-
-function head {
-  param($Path, $n = 10)
-  Get-Content $Path -Head $n
-}
-
-function tail {
-  param($Path, $n = 10, [switch]$f = $false)
-  Get-Content $Path -Tail $n -Wait:$f
-}
-
-# Quick File Creation
-function nf { param($name) New-Item -ItemType "file" -Path . -Name $name }
-
-# Directory Management
-function mkcd { param($dir) mkdir $dir -Force; Set-Location $dir }
-
-### Quality of Life Aliases
-
-# Navigation Shortcuts
-function docs { Set-Location -Path $HOME\Documents }
-
-function dtop { Set-Location -Path $HOME\Desktop }
-
-# Simplified Process Management
-function k9 { Stop-Process -Name $args[0] }
-
-# Enhanced Listing
-function la { Get-ChildItem -Path . -Force | Format-Table -AutoSize }
-
-function ll { Get-ChildItem -Path . -Force -Hidden | Format-Table -AutoSize }
-
-function lh { ls -h }
+# Text Processing
+function grep { param([string]$regex, [string]$dir) if ($dir) { Get-ChildItem $dir | Select-String $regex } else { $input | Select-String $regex } }
+function sed { param([string]$file, [string]$find, [string]$replace) (Get-Content $file).replace($find, $replace) | Set-Content $file }
+function which { param([string]$name) Get-Command $name | Select-Object -ExpandProperty Definition }
+function export { param([string]$name, [string]$value) Set-Item -Path "env:$name" -Value $value -Force }
+function head { param([string]$file, [int]$lines=10) Get-Content $file | Select-Object -First $lines }
+function tail { param([string]$file, [int]$lines=10) Get-Content $file | Select-Object -Last $lines }
+function hb { param([string]$text) Invoke-RestMethod -Uri "https://hastebin.com/documents" -Method Post -Body $text | Select-Object -ExpandProperty key }
 
 # Git Shortcuts
 function gs { git status }
-
 function ga { git add . }
-
-function gc { param($m) git commit -m "$m" }
-
+function gc { param([string]$m) git commit -m "$m" }
 function gp { git push }
+function gcl { param([string]$repo) git clone "$repo" }
+function gcom { param([string]$msg) git add .; git commit -m "$msg" }
+function lazyg { param([string]$msg) git add .; git commit -m "$msg"; git push }
 
-function g { __zoxide_z github }
-
-function gcl { git clone "$args" }
-
-function gcom {
-    git add .
-    git commit -m "$args"
-}
-function lazyg {
-    git add .
-    git commit -m "$args"
-    git push
-}
-
-# Quick Access to System Information
-function sysinfo { Get-ComputerInfo }
-
-# Networking Utilities
-function flushdns {
-	Clear-DnsClientCache
-	Write-Host "DNS has been flushed"
-}
-
-# Clipboard Utilities
-function cpy { Set-Clipboard $args[0] }
-
+# Clipboard
+function cpy { param([string]$text) Set-Clipboard $text }
 function pst { Get-Clipboard }
 
+# Aliases
+Set-Alias npp "C:\Program Files\Notepad++\notepad++.exe"
+Set-Alias whr where.exe
+Set-Alias pm pnpm
+Set-Alias yn yarn
+Set-Alias la "ls"
+Set-Alias ll "ls -Force"
+Set-Alias lh "ls -lh"
+
+# Help Function
 function Show-Help {
-    @"
-PowerShell Profile Help
-=======================
+    Write-Host "PowerShell Profile Help"
+    Write-Host "======================="
+    
+    Write-Host "`nFunctions:"
+    Write-Host "------------"
+    Write-Host "Clear-Cache - Clears Windows and User cache directories."
+    Write-Host "shutdown - Shuts down the computer."
+    Write-Host "restart - Restarts the computer."
+    Write-Host "abort - Aborts any active shutdown."
+    Write-Host "slp - Activates the sleep shortcut on the desktop."
+    Write-Host "idocs - Navigate to _Important Documents directory."
+    Write-Host "cdocs - Navigate to coding directory under _Important Documents."
+    Write-Host "docs - Navigate to Documents directory."
+    Write-Host "dtop - Navigate to Desktop directory."
+    Write-Host "touch <file(s)> - Creates a new file if it doesn't exist."
+    Write-Host "open <directory> - Opens a directory in File Explorer."
+    Write-Host "nf <name> - Creates a new file with the given name."
+    Write-Host "mkcd <directory> - Creates a directory and moves into it."
+    Write-Host "unzip <file> - Extracts contents from a zip file."
+    Write-Host "df - Displays information about disk volumes."
+    Write-Host "sysinfo - Displays system information."
+    Write-Host "flushdns - Clears the DNS client cache."
+    Write-Host "uptime - Displays the system uptime."
+    Write-Host "shizuku <args> - Executes the Shizuku command with ADB."
+    Write-Host "ep - Opens the profile file using Nano."
+    Write-Host "nep - Opens the profile file using Notepad++."
+    Write-Host "source - Reloads the profile script."
+    Write-Host "Get-PubIP - Displays the public IP address."
+    Write-Host "winutil - Executes a script from Chris Titus Tech."
 
-clear-cache - Clears caches.
+    Write-Host "`nProcess Management:"
+    Write-Host "--------------------"
+    Write-Host "admin <cmd> - Runs a command as an administrator."
+    Write-Host "pkill <identifier> - Kills a process by name."
+    Write-Host "pgrep <name> - Searches for processes by name."
+    Write-Host "pfind <port> - Finds processes listening on a given port."
+    Write-Host "k9 <process> - Kills a process by name."
 
-shutdown - Shuts down the computer.
+    Write-Host "`nText Processing:"
+    Write-Host "----------------"
+    Write-Host "grep <regex> <directory> - Searches files matching a regex in a directory."
+    Write-Host "sed <file> <find> <replace> - Replaces text in a file."
+    Write-Host "which <command> - Displays the full path of a command."
+    Write-Host "export <name> <value> - Sets an environment variable."
+    Write-Host "head <file> <lines> - Displays the first <lines> lines of a file."
+    Write-Host "tail <file> <lines> - Displays the last <lines> lines of a file."
+    Write-Host "hb <text> - Uploads text to Hastebin and returns the URL."
 
-restart - Restarts the computer.
+    Write-Host "`nGit Shortcuts:"
+    Write-Host "----------------"
+    Write-Host "gs - Displays the status of the git repository."
+    Write-Host "ga - Stages all changes for commit."
+    Write-Host "gc <message> - Commits staged changes with a message."
+    Write-Host "gp - Pushes changes to the remote repository."
+    Write-Host "gcl <repository> - Clones a git repository."
+    Write-Host "gcom <message> - Stages, commits, and pushes changes."
+    Write-Host "lazyg <message> - Stages, commits, and pushes changes with a single message."
 
-slp - Sleeps the computer.
+    Write-Host "`nClipboard:"
+    Write-Host "-----------"
+    Write-Host "cpy <text> - Copies text to the clipboard."
+    Write-Host "pst - Pastes text from the clipboard."
 
-abort - Aborts the shutdown.
-
-npp <file> - Opens the specified file in Notepad++.
-
-admin/sudo <command> - Runs the current command as an administrator.
-
-shizuku - Start the shizuku service while connected to an Android device.
-
-whr <file> - Find the path of the specified file.
-
-ep - Opens the current user's profile for editing using the configured editor.
-
-source - Reloads the current user's PowerShell profile.
-
-touch <file> - Creates a new empty file.
-
-ff <name> - Finds files recursively with the specified name.
-
-Get-PubIP - Retrieves the public IP address of the machine.
-
-winutil - Runs the WinUtil script from Chris Titus Tech.
-
-uptime - Displays the system uptime.
-
-unzip <file> - Extracts a zip file to the current directory.
-
-hb <file> - Uploads the specified file's content to a hastebin-like service and returns the URL.
-
-grep <regex> [dir] - Searches for a regex pattern in files within the specified directory or from the pipeline input.
-
-df - Displays information about volumes.
-
-sed <file> <find> <replace> - Replaces text in a file.
-
-which <name> - Shows the path of the command.
-
-export <name> <value> - Sets an environment variable.
-
-pkill <name> - Kills processes by name or ID.
-
-pgrep <name> - Lists processes by name.
-
-head <path> [n] - Displays the first n lines of a file (default 10).
-
-tail <path> [n] - Displays the last n lines of a file (default 10).
-
-nf <name> - Creates a new file with the specified name.
-
-mkcd <dir> - Creates and changes to a new directory.
-
-docs - Changes the current directory to the user's Documents folder.
-
-dtop - Changes the current directory to the user's Desktop folder.
-
-ep - Opens the profile for editing.
-
-k9 <name> - Kills a process by name.
-
-la - Lists all files in the current directory with detailed formatting.
-
-ll - Lists all files, including hidden, in the current directory with detailed formatting.
-
-lh - Lists hidden files in the current directory with detailed formatting.
-
-gs - Shortcut for 'git status'.
-
-ga - Shortcut for 'git add .'.
-
-gc <message> - Shortcut for 'git commit -m'.
-
-gp - Shortcut for 'git push'.
-
-g - Changes to the GitHub directory.
-
-gcom <message> - Adds all changes and commits with the specified message.
-
-lazyg <message> - Adds all changes, commits with the specified message, and pushes to the remote repository.
-
-sysinfo - Displays detailed system information.
-
-flushdns - Clears the DNS cache.
-
-cpy <text> - Copies the specified text to the clipboard.
-
-pst - Retrieves text from the clipboard.
-
-Use 'Show-Help' to display this help message.
-"@
+    Write-Host "`nAliases:"
+    Write-Host "---------"
+    Write-Host "npp - Opens Notepad++."
+    Write-Host "whr - Finds the path of a command."
+    Write-Host "pm - Alias for pnpm."
+    Write-Host "yn - Alias for yarn."
+    Write-Host "la - Alias for 'ls'."
+    Write-Host "ll - Alias for 'ls -Force'."
+    Write-Host "lh - Alias for 'ls -lh'."
 }
+
 Write-Host "Use 'Show-Help' to display help"
-
-#f45873b3-b655-43a6-b217-97c00aa0db58 PowerToys CommandNotFound module
-
-Import-Module -Name Microsoft.WinGet.CommandNotFound
-#f45873b3-b655-43a6-b217-97c00aa0db58
