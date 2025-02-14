@@ -66,10 +66,22 @@ function ep { nano $PROFILE }
 function nep { npp $PROFILE }
 function source { . $PROFILE }
 function Get-PubIP { Invoke-RestMethod -Uri "http://api.ipify.org" }
-function winutil { iwr -useb https://christitus.com/win | iex }
+function winutil {
+    if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+        Start-Process pwsh.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"& { iwr -useb https://christitus.com/win | iex }`"" -Verb RunAs
+        return
+    }
+    iwr -useb https://christitus.com/win | iex
+}
 
 # Process Management
-function admin { param([string]$cmd) Start-Process wt -Verb runAs -ArgumentList "pwsh.exe -NoExit -Command $cmd" }
+function admin { param([string]$cmd = "") 
+	$argList = "pwsh.exe -NoExit"
+    if ($cmd -ne "") {
+        $argList += " -Command $cmd"
+    }
+    Start-Process wt -Verb runAs -ArgumentList $argList
+}
 function pkill { param([string]$identifier) Stop-Process -Name $identifier -Force }
 function pgrep { param([string]$name) Get-Process -Name $name }
 function pfind { param([int]$port) netstat -ano | Select-String ":$port\\s" }
