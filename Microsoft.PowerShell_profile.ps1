@@ -114,9 +114,8 @@ Set-Alias npp "C:\Program Files\Notepad++\notepad++.exe"
 Set-Alias whr where.exe
 Set-Alias pm pnpm
 Set-Alias yn yarn
-Set-Alias la "ls"
-Set-Alias ll "ls -Force"
-Set-Alias lh "ls -lh"
+function ll { Get-ChildItem -Force }
+function lh { Get-ChildItem | Format-Table Name, Mode, Length, LastWriteTime -AutoSize }
 
 # Help Function
 function Show-Help {
@@ -189,9 +188,8 @@ function Show-Help {
     Write-Host "whr - Finds the path of a command."
     Write-Host "pm - Alias for pnpm."
     Write-Host "yn - Alias for yarn."
-    Write-Host "la - Alias for 'ls'."
-    Write-Host "ll - Alias for 'ls -Force'."
-    Write-Host "lh - Alias for 'ls -lh'."
+    Write-Host "ll - List all files including hidden "
+    Write-Host "lh - Long listing of files"
 }
 
 Write-Host "Use 'Show-Help' to display help"
