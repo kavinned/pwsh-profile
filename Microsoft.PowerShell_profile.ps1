@@ -11,7 +11,7 @@ if (!(Get-Module -ListAvailable -Name Microsoft.WinGet.CommandNotFound)) {
 }
 Invoke-Expression (&scoop-search --hook)
 
-# Functions
+# System Functions
 function Clear-Cache {
     Write-Host "Clearing cache..." -ForegroundColor Cyan
 
@@ -64,6 +64,9 @@ adb $args shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/s
 }
 function ep { nano $PROFILE }
 function nep { npp $PROFILE }
+function chistory { 
+	npp "$($env:APPDATA)\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt"
+}
 function source { . $PROFILE }
 function Get-PubIP { Invoke-RestMethod -Uri "http://api.ipify.org" }
 function winutil {
@@ -99,8 +102,8 @@ function hb { param([string]$text) Invoke-RestMethod -Uri "https://hastebin.com/
 # Git Shortcuts
 function gs { git status }
 function ga { git add . }
-function gc { param([string]$m) git commit -m "$m" }
-function gp { git push }
+function gpull { git pull }
+function gpush { git push }
 function gcl { param([string]$repo) git clone "$repo" }
 function gcom { param([string]$msg) git add .; git commit -m "$msg" }
 function lazyg { param([string]$msg) git add .; git commit -m "$msg"; git push }
