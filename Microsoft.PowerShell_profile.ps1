@@ -193,3 +193,6 @@ function Show-Help {
 }
 
 Write-Host "Use 'Show-Help' to display help"
+
+# Imports
+. "$($env:USERPROFILE)\Documents\PowerShell\Scripts\webpconv.ps1" #webpconv

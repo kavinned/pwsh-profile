@@ -2,6 +2,8 @@
 
 :: Copy VS Code settings
 copy "C:\Users\Kavin\Documents\PowerShell\Microsoft.PowerShell_profile.ps1" "."
+xcopy "C:\Users\Kavin\Documents\PowerShell\Scripts" "./Scripts" /E /I /H /Y
+
 
 echo Profile copied successfully!
 
