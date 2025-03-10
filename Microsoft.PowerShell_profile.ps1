@@ -1,5 +1,8 @@
 # Load Oh-My-Posh Theme
-oh-my-posh init pwsh --config "$env:LOCALAPPDATA\Programs\oh-my-posh\themes\nordtron.omp.json" | Invoke-Expression
+# oh-my-posh init pwsh --config "$env:LOCALAPPDATA\Programs\oh-my-posh\themes\nordtron.omp.json" | Invoke-Expression
+
+$ProgramFilesX86 = [System.Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
+oh-my-posh init pwsh --config "$ProgramFilesX86\oh-my-posh\themes\nordtron.omp.json" | Invoke-Expression
 
 # Improve PSReadline Autocomplete
 Set-PSReadLineOption -PredictionSource History -PredictionViewStyle ListView -EditMode Windows
