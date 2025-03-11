@@ -1,10 +1,11 @@
 # Load Oh-My-Posh Theme
-try {
-    $ompConfig = "$env:LOCALAPPDATA\Programs\oh-my-posh\themes\nordtron.omp.json"
+$ProgramFilesX86 = [System.Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
+$fallbackConfig = "$ProgramFilesX86\oh-my-posh\themes\nordtron.omp.json"
+$ompConfig = "$env:LOCALAPPDATA\Programs\oh-my-posh\themes\nordtron.omp.json"
+
+if (Test-Path $ompConfig) {
     oh-my-posh init pwsh --config $ompConfig | Invoke-Expression
-} catch {
-    $ProgramFilesX86 = [System.Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
-    $fallbackConfig = "$ProgramFilesX86\oh-my-posh\themes\nordtron.omp.json"
+} elseif (Test-Path $fallbackConfig) {
     oh-my-posh init pwsh --config $fallbackConfig | Invoke-Expression
 }
 
