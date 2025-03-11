@@ -1,15 +1,19 @@
 # Load Oh-My-Posh Theme
-# oh-my-posh init pwsh --config "$env:LOCALAPPDATA\Programs\oh-my-posh\themes\nordtron.omp.json" | Invoke-Expression
-
-$ProgramFilesX86 = [System.Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
-oh-my-posh init pwsh --config "$ProgramFilesX86\oh-my-posh\themes\nordtron.omp.json" | Invoke-Expression
+try {
+    $ompConfig = "$env:LOCALAPPDATA\Programs\oh-my-posh\themes\nordtron.omp.json"
+    oh-my-posh init pwsh --config $ompConfig | Invoke-Expression
+} catch {
+    $ProgramFilesX86 = [System.Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
+    $fallbackConfig = "$ProgramFilesX86\oh-my-posh\themes\nordtron.omp.json"
+    oh-my-posh init pwsh --config $fallbackConfig | Invoke-Expression
+}
 
 # Improve PSReadline Autocomplete
 Set-PSReadLineOption -PredictionSource History -PredictionViewStyle ListView -EditMode Windows
 
 # Lazy Load Modules
 Import-Module -Name Terminal-Icons
-if (!(Get-Module -ListAvailable -Name Microsoft.WinGet.CommandNotFound)) {
+if (Get-Module -ListAvailable -Name Microsoft.WinGet.CommandNotFound) {
     Import-Module -Name Microsoft.WinGet.CommandNotFound
 }
 Invoke-Expression (&scoop-search --hook)
@@ -201,4 +205,9 @@ function Show-Help {
 Write-Host "Use 'Show-Help' to display help"
 
 # Imports
-. "$($env:USERPROFILE)\Documents\PowerShell\Scripts\webpconv.ps1" #webpconv
+#webpconv
+try { 
+    . "$($env:USERPROFILE)\Documents\PowerShell\Scripts\webpconv.ps1"
+} catch {
+    . "$($env:OneDrive)\Documents\PowerShell\Scripts\webpconv.ps1"
+}
