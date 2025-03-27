@@ -28,7 +28,7 @@ function webpconv {
     # Start ffmpeg in a background job
     $ffmpegJob = Start-Job -ScriptBlock {
         param ($InputFile, $OutputFile)
-        ffmpeg -loglevel error -i "$InputFile" -vf "fps=24,scale=iw:-1:flags=lanczos" -vcodec libwebp -lossless 0 -compression_level 6 -q:v 100 -loop 0 -an -vsync 0 "$OutputFile" >$null 2>&1
+        ffmpeg -loglevel error -i "$InputFile" -vf "scale=iw:-1:flags=lanczos" -vcodec libwebp -lossless 0 -compression_level 5 -q:v 80 -loop 0 -an -fps_mode passthrough "$OutputFile" >$null 2>&1
     } -ArgumentList $InputFile, $OutputFile
 
     # Loading spinner
