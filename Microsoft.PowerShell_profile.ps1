@@ -58,13 +58,20 @@ function unzip { param([string]$file) Expand-Archive -Path $file }
 function CompressMp4 {
     param([string]$Exclude, [string]$Include)
     
+    $compressedDir = "$PWD\compressed"
+    if (!(Test-Path $compressedDir)) {
+        New-Item -ItemType Directory -Path $compressedDir | Out-Null
+    }
+    
     Get-ChildItem *.mp4 | Where-Object {
         (!$Exclude -or $_.Name -notlike "*$Exclude*") -and 
         (!$Include -or $_.Name -like "*$Include*")
     } | ForEach-Object {
         Write-Host "Processing: $($_.Name)" -ForegroundColor Cyan
         $ErrorActionPreference = 'Continue'
-        $output = ffmpeg -i "$($_.FullName)" -c:v libx265 -crf 18 -preset slow "$($_.DirectoryName)\$($_.BaseName)_ffmpeg.mp4" -hide_banner -loglevel error 2>&1
+        $outputFile = "$compressedDir\$($_.BaseName)_ffmpeg.mp4"
+        $output = ffmpeg -i "$($_.FullName)" -c:v libx265 -crf 18 -preset slow "$outputFile" -hide_banner -loglevel error 2>&1
+        
         if ($LASTEXITCODE -ne 0) {
             Write-Host "Error converting $($_.Name):" -ForegroundColor Red
             $output | Where-Object { $_ -ne $null } | ForEach-Object { Write-Host $_ -ForegroundColor Red }
