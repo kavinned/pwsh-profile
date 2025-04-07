@@ -34,6 +34,12 @@ function Clear-Cache {
 
     Write-Host "Clearing Internet Explorer Cache..." -ForegroundColor Yellow
     Remove-Item -Path "$env:LOCALAPPDATA\Microsoft\Windows\INetCache\*" -Recurse -Force -ErrorAction SilentlyContinue
+	
+	Write-Host "Clearing Scoop Cache..." -ForegroundColor Yellow
+	scoop cache rm *
+	
+	Write-Host "Clearing Choco Cache..." -ForegroundColor Yellow
+	sudo choco cache remove --all
 
     Write-Host "Cache clearing completed." -ForegroundColor Green
 }
@@ -55,6 +61,10 @@ function open { param([string]$Dir) explorer.exe $Dir }
 function nf { param([string]$name) New-Item -ItemType "file" -Path . -Name $name }
 function mkcd { param([string]$dir) mkdir $dir -Force; Set-Location $dir }
 function unzip { param([string]$file) Expand-Archive -Path $file }
+function 2Gif {
+    param([string]$file)
+    ffmpeg -i $file -vf "fps=15,scale=512:-1:flags=lanczos" -c:v gif "$([io.path]::GetFileNameWithoutExtension($file)).gif"
+}
 function CompressMp4 {
     param([string]$Exclude, [string]$Include)
     
