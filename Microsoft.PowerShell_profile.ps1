@@ -139,6 +139,12 @@ function export { param([string]$name, [string]$value) Set-Item -Path "env:$name
 function head { param([string]$file, [int]$lines=10) Get-Content $file | Select-Object -First $lines }
 function tail { param([string]$file, [int]$lines=10) Get-Content $file | Select-Object -Last $lines }
 function hb { param([string]$text) Invoke-RestMethod -Uri "https://hastebin.com/documents" -Method Post -Body $text | Select-Object -ExpandProperty key }
+function wc {
+    param([Parameter(ValueFromPipeline = $true)][string[]]$in)
+    begin { $sb = "" }
+    process { $sb += "$in`n" }
+    end { ($sb -split "`n").Count - 1 }
+}
 
 # Git Shortcuts
 function gs { git status }
@@ -183,12 +189,16 @@ function Show-Help {
     Write-Host "mkcd <directory> - Creates a directory and moves into it."
     Write-Host "unzip <file> - Extracts contents from a zip file."
     Write-Host "df - Displays information about disk volumes."
+    Write-Host "compressmp4 - Compresses mp4 files in a directory"
+    Write-Host "webpconv - Converts file to webp."
+    Write-Host "2Gif - Converts file to gif."
     Write-Host "sysinfo - Displays system information."
     Write-Host "flushdns - Clears the DNS client cache."
     Write-Host "uptime - Displays the system uptime."
     Write-Host "shizuku <args> - Executes the Shizuku command with ADB."
     Write-Host "ep - Opens the profile file using Nano."
     Write-Host "nep - Opens the profile file using Notepad++."
+    Write-Host "chistory - Opens the console history file in Notepad++."
     Write-Host "source - Reloads the profile script."
     Write-Host "Get-PubIP - Displays the public IP address."
     Write-Host "winutil - Executes a script from Chris Titus Tech."
