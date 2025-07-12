@@ -20,8 +20,20 @@ if (Get-Module -ListAvailable -Name Microsoft.WinGet.CommandNotFound) {
 Invoke-Expression (&scoop-search --hook)
 
 # System Functions
-function Clear-Cache {
+function clear-cache {
     Write-Host "Clearing cache..." -ForegroundColor Cyan
+
+	Write-Host "Clearing Choco Cache..." -ForegroundColor Yellow
+	sudo choco cache remove --all
+
+	Write-Host "Clearing Scoop Cache..." -ForegroundColor Yellow
+	scoop cache rm *
+	
+	Write-Host "Clearing Stremio Cache..." -ForegroundColor Yellow
+	Remove-Item -Path "$env:APPDATA\stremio\stremio-server\stremio-cache" -Recurse -Force -ErrorAction SilentlyContinue
+	
+	Write-Host "Clearing Kdenlive Cache..." -ForegroundColor Yellow
+	Remove-Item -Path "$env:LOCALAPPDATA\kdenlive\cache" -Recurse -ErrorAction SilentlyContinue
 
     Write-Host "Clearing Windows Prefetch..." -ForegroundColor Yellow
     Remove-Item -Path "$env:SystemRoot\Prefetch\*" -Force -ErrorAction SilentlyContinue
@@ -35,15 +47,8 @@ function Clear-Cache {
     Write-Host "Clearing Internet Explorer Cache..." -ForegroundColor Yellow
     Remove-Item -Path "$env:LOCALAPPDATA\Microsoft\Windows\INetCache\*" -Recurse -Force -ErrorAction SilentlyContinue
 	
-	Write-Host "Clearing Scoop Cache..." -ForegroundColor Yellow
-	scoop cache rm *
-	
-	Write-Host "Clearing Choco Cache..." -ForegroundColor Yellow
-	sudo choco cache remove --all
-
     Write-Host "Cache clearing completed." -ForegroundColor Green
 }
-
 function shutdown { Start-Process "shutdown.exe" -ArgumentList "-s -t 00" }
 function restart { Start-Process "shutdown.exe" -ArgumentList "-r -t 00" }
 function abort { Start-Process "shutdown.exe" -ArgumentList "-a" }
@@ -80,12 +85,44 @@ function CompressMp4 {
         Write-Host "Processing: $($_.Name)" -ForegroundColor Cyan
         $ErrorActionPreference = 'Continue'
         $outputFile = "$compressedDir\$($_.BaseName)_ffmpeg.mp4"
-        $output = ffmpeg -i "$($_.FullName)" -c:v libx265 -crf 18 -preset slow "$outputFile" -hide_banner -loglevel error 2>&1
+        $output = ffmpeg -i "$($_.FullName)" -c:v libx265 -b:v 6M -preset slow "$outputFile" -hide_banner -loglevel error 2>&1
         
         if ($LASTEXITCODE -ne 0) {
             Write-Host "Error converting $($_.Name):" -ForegroundColor Red
             $output | Where-Object { $_ -ne $null } | ForEach-Object { Write-Host $_ -ForegroundColor Red }
         }
+    }
+}
+function GFF {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$InputFile,
+        [Alias("h")]
+        [int]$Height = 1152
+    )
+    
+    if (-not (Test-Path $InputFile)) {
+        Write-Error "File '$InputFile' not found."
+        return
+    }
+    
+    $BaseName = [System.IO.Path]::GetFileNameWithoutExtension($InputFile)
+    $OutputFile = "${BaseName}_first_frame.jpg"
+    
+    # Check if output already exists and prompt
+    if (Test-Path $OutputFile) {
+        $response = Read-Host "Output file '$OutputFile' already exists. Overwrite? (y/n)"
+        if ($response -notmatch '^[yY]') {
+            Write-Host "Skipped."
+            return
+        }
+    }
+    
+    # Fixed: Use $Height for both width and height constraints
+    ffmpeg -y -i $InputFile -vf "select=eq(n\,0),scale='min($Height,iw)':'min($Height,ih)':force_original_aspect_ratio=decrease" -frames:v 1 -q:v 2 $OutputFile -hide_banner -loglevel error
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "First frame saved as '$OutputFile'"
     }
 }
 
@@ -165,7 +202,26 @@ Set-Alias whr where.exe
 Set-Alias pm pnpm
 Set-Alias yn yarn
 function ll { Get-ChildItem -Force }
-function lh { Get-ChildItem | Format-Table Name, Mode, Length, LastWriteTime -AutoSize }
+function lh {
+    Get-ChildItem -Force | Select-Object Name,
+    @{
+        Name = "Size"
+        Expression = {
+            if (-not $_.PSIsContainer) {
+                $size = [double]$_.Length
+                switch ($size) {
+                    {$_ -ge 1GB} { "{0:N2} GB" -f ($size / 1GB); break }
+                    {$_ -ge 1MB} { "{0:N2} MB" -f ($size / 1MB); break }
+                    {$_ -ge 1KB} { "{0:N2} KB" -f ($size / 1KB); break }
+                    default      { "$($_.Length) B" }
+                }
+            } else {
+                ""  # Leave blank for directories
+            }
+        }
+    },
+    LastWriteTime | Format-Table -AutoSize
+}
 
 # Help Function
 function Show-Help {
