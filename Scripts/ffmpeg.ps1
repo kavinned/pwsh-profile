@@ -102,3 +102,35 @@ function RevVid {
         Write-Error "ffmpeg failed with exit code $LASTEXITCODE"
     }
 }
+function RotateVid {
+    param(
+        [string]$InputFile,
+        [int]$r = 90
+    )
+
+    # Map rotation degrees to FFmpeg transpose values
+    $transposeValue = switch ($r) {
+        90 { 1 }
+        180 { 2 }
+        270 { 3 }
+        default {
+            Write-Host "Unsupported rotation angle. Only 90, 180, or 270 degrees are supported."
+            return
+        }
+    }
+
+    # Set output file
+	$BaseName = [System.IO.Path]::GetFileNameWithoutExtension($InputFile)
+	$OutputFile = "${BaseName}_transposed.mp4"
+	
+	Write-Host "Rotating video: $InputFile -> $OutputFile"
+
+    # Run FFmpeg command
+    & ffmpeg -i $InputFile -vf "transpose=$transposeValue" -c:v hevc_nvenc -cq 19 -maxrate 15M -bufsize 30M $OutputFile -hide_banner -loglevel error
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Video rotated successfully to $OutputFile!"
+    } else {
+        Write-Host "Something went wrong with FFmpeg. Check your input file or installation."
+    }
+}

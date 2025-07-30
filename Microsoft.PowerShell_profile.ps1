@@ -83,11 +83,11 @@ adb $args shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/s
 }
 function ep { nano $PROFILE }
 function nep { npp $PROFILE }
-function chistory { 
+function ch { 
 	npp "$($env:APPDATA)\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt"
 }
 function source { . $PROFILE }
-function Get-PubIP { Invoke-RestMethod -Uri "http://api.ipify.org" }
+function ipa { Invoke-RestMethod -Uri "http://api.ipify.org" }
 function winutil {
     if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
         Start-Process pwsh.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"& { iwr -useb https://christitus.com/win | iex }`"" -Verb RunAs
@@ -195,9 +195,9 @@ function Show-Help {
     Write-Host "shizuku <args> - Executes the Shizuku command with ADB."
     Write-Host "ep - Opens the profile file using Nano."
     Write-Host "nep - Opens the profile file using Notepad++."
-    Write-Host "chistory - Opens the console history file in Notepad++."
+    Write-Host "ch - Opens the console history file in Notepad++."
     Write-Host "source - Reloads the profile script."
-    Write-Host "Get-PubIP - Displays the public IP address."
+    Write-Host "ipa - Displays the public IP address."
     Write-Host "winutil - Executes a script from Chris Titus Tech."
 
     Write-Host "`nProcess Management:"
