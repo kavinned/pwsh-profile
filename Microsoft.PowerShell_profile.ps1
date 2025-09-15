@@ -34,6 +34,10 @@ function clear-cache {
 	
 	Write-Host "Clearing Kdenlive Cache..." -ForegroundColor Yellow
 	Remove-Item -Path "$env:LOCALAPPDATA\kdenlive\cache" -Recurse -ErrorAction SilentlyContinue
+	
+	Write-Host "Clearing Pip and UV Cache..." -ForegroundColor Yellow
+	uv cache clean
+	pip cache purge
 
     Write-Host "Clearing Windows Prefetch..." -ForegroundColor Yellow
     Remove-Item -Path "$env:SystemRoot\Prefetch\*" -Force -ErrorAction SilentlyContinue

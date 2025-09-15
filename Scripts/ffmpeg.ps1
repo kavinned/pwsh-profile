@@ -80,14 +80,17 @@ function RevVid {
         Write-Error "ffmpeg is not installed or not in PATH."
         return
     }
+	
+	$BaseName = [System.IO.Path]::GetFileNameWithoutExtension($InputFile)
+	$OutputFile = "${BaseName}_reversed.mp4"
     
     # Build the ffmpeg command
     $ffmpegArgs = @(
         "-i", $InputFile,
         "-vf", "reverse",
         "-af", "areverse", 
-        "-c:v", "h264_nvenc",
-        "-cq", "19",
+        "-c:v", "hevc_nvenc",
+        "-cq", "18",
         $OutputFile
     )
     
