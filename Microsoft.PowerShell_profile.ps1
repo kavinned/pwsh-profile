@@ -20,39 +20,6 @@ if (Get-Module -ListAvailable -Name Microsoft.WinGet.CommandNotFound) {
 Invoke-Expression (&scoop-search --hook)
 
 # System Functions
-function clear-cache {
-    Write-Host "Clearing cache..." -ForegroundColor Cyan
-
-	Write-Host "Clearing Choco Cache..." -ForegroundColor Yellow
-	sudo choco cache remove --all
-
-	Write-Host "Clearing Scoop Cache..." -ForegroundColor Yellow
-	scoop cache rm *
-	
-	Write-Host "Clearing Stremio Cache..." -ForegroundColor Yellow
-	Remove-Item -Path "$env:APPDATA\stremio\stremio-server\stremio-cache" -Recurse -Force -ErrorAction SilentlyContinue
-	
-	Write-Host "Clearing Kdenlive Cache..." -ForegroundColor Yellow
-	Remove-Item -Path "$env:LOCALAPPDATA\kdenlive\cache" -Recurse -ErrorAction SilentlyContinue
-	
-	Write-Host "Clearing Pip and UV Cache..." -ForegroundColor Yellow
-	uv cache clean
-	pip cache purge
-
-    Write-Host "Clearing Windows Prefetch..." -ForegroundColor Yellow
-    Remove-Item -Path "$env:SystemRoot\Prefetch\*" -Force -ErrorAction SilentlyContinue
-
-    Write-Host "Clearing Windows Temp..." -ForegroundColor Yellow
-    Remove-Item -Path "$env:SystemRoot\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
-
-    Write-Host "Clearing User Temp..." -ForegroundColor Yellow
-    Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
-
-    Write-Host "Clearing Internet Explorer Cache..." -ForegroundColor Yellow
-    Remove-Item -Path "$env:LOCALAPPDATA\Microsoft\Windows\INetCache\*" -Recurse -Force -ErrorAction SilentlyContinue
-	
-    Write-Host "Cache clearing completed." -ForegroundColor Green
-}
 function shutdown { Start-Process "shutdown.exe" -ArgumentList "-s -t 00" }
 function restart { Start-Process "shutdown.exe" -ArgumentList "-r -t 00" }
 function abort { Start-Process "shutdown.exe" -ArgumentList "-a" }
@@ -250,15 +217,17 @@ function Show-Help {
 Write-Host "Use 'Show-Help' to display help"
 
 # Imports
-#webpconv
-try { 
-    . "$($env:USERPROFILE)\Documents\PowerShell\Scripts\webpconv.ps1"
-} catch {
-    . "$($env:OneDrive)\Documents\PowerShell\Scripts\webpconv.ps1"
-}
-#ffmpeg fns
-try { 
-    . "$($env:USERPROFILE)\Documents\PowerShell\Scripts\ffmpeg.ps1"
-} catch {
-    . "$($env:OneDrive)\Documents\PowerShell\Scripts\ffmpeg.ps1"
+# Auto-import all .ps1 files from Scripts directory
+$scriptPaths = @(
+    "$($env:USERPROFILE)\Documents\PowerShell\Scripts",
+    "$($env:OneDrive)\Documents\PowerShell\Scripts"
+)
+
+if ($PSVersionTable.PSEdition -eq 'Core') {
+	foreach ($path in $scriptPaths) {
+		if (Test-Path $path) {
+			Get-ChildItem -Path $path -Filter "*.ps1" | ForEach-Object { . $_.FullName }
+			break
+		}
+	}
 }
