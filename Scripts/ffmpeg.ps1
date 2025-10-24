@@ -137,3 +137,18 @@ function RotateVid {
         Write-Host "Something went wrong with FFmpeg. Check your input file or installation."
     }
 }
+function getAAC {
+	param(
+        [string]$file
+	)
+
+	$BaseName = [System.IO.Path]::GetFileNameWithoutExtension($file)
+
+    ffmpeg -i $file -c:a aac -vn "$BaseName.aac" -hide_banner -loglevel error
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Audio extracted successfully to $BaseName.aac"
+    } else {
+        Write-Host "Something went wrong with FFmpeg. Check your input file or installation."
+    }
+}
