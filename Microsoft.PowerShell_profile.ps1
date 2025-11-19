@@ -1,13 +1,7 @@
 # Load Oh-My-Posh Theme
 $ProgramFilesX86 = [System.Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
-$fallbackConfig = "$ProgramFilesX86\oh-my-posh\themes\nordtron.omp.json"
-$ompConfig = "$env:LOCALAPPDATA\Programs\oh-my-posh\themes\nordtron.omp.json"
 
-if (Test-Path $ompConfig) {
-    oh-my-posh init pwsh --config $ompConfig | Invoke-Expression
-} elseif (Test-Path $fallbackConfig) {
-    oh-my-posh init pwsh --config $fallbackConfig | Invoke-Expression
-}
+Invoke-Expression (&starship init powershell)
 
 # Improve PSReadline Autocomplete
 Set-PSReadLineOption -PredictionSource History -PredictionViewStyle ListView -EditMode Windows

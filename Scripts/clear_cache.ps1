@@ -8,79 +8,111 @@ function clear-cache {
         param([string]$Path)
         if (Test-Path $Path) {
             try {
-                $size = (Get-ChildItem -Path $Path -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+                $size = (Get-ChildItem -Path $Path -Recurse -File -ErrorAction SilentlyContinue | 
+                         Measure-Object -Property Length -Sum).Sum
+                if ($size -eq $null) { return 0 }
                 return [math]::Round($size / 1MB, 2)
             }
             catch {
                 return 0
             }
         }
-        return 0
+        return -1
     }
     
-    # Choco Cache
-    Write-Host "Clearing Choco Cache..." -ForegroundColor Yellow
-    $totalFreed += Get-DirectorySize "$env:ChocolateyInstall\cache"
-    sudo choco cache remove --all
+    # Helper function to clear a directory-based cache
+    function Clear-DirectoryCache {
+        param(
+            [string]$Name,
+            [string]$Path,
+            [scriptblock]$ClearCommand
+        )
+        
+        Write-Host "Clearing $Name..." -ForegroundColor Yellow
+        
+        if (-not (Test-Path $Path)) {
+            Write-Host "  Directory not found" -ForegroundColor DarkGray
+            return 0
+        }
+        
+        $size = Get-DirectorySize $Path
+        if ($size -gt 0) {
+            & $ClearCommand | Out-Null
+            Write-Host "  Cleared $size MB" -ForegroundColor Green
+            return $size
+        } else {
+            Write-Host "  Cache already empty" -ForegroundColor DarkGray
+            return 0
+        }
+    }
+    
+    # Helper function to clear command-based cache (pip, uv)
+    function Clear-CommandCache {
+        param(
+            [string]$Name,
+            [string]$CommandName,
+            [scriptblock]$GetCacheDirCommand,
+            [scriptblock]$ClearCommand
+        )
+        
+        Write-Host "Clearing $Name..." -ForegroundColor Yellow
+        
+        if (-not (Get-Command $CommandName -ErrorAction SilentlyContinue)) {
+            Write-Host "  $CommandName not installed" -ForegroundColor DarkGray
+            return 0
+        }
+        
+        try {
+            $cacheDir = & $GetCacheDirCommand 2>$null
+            if ($cacheDir -and (Test-Path $cacheDir)) {
+                $size = Get-DirectorySize $cacheDir
+                if ($size -gt 0) {
+                    & $ClearCommand | Out-Null
+                    Write-Host "  Cleared $size MB" -ForegroundColor Green
+                    return $size
+                } else {
+                    Write-Host "  Cache already empty" -ForegroundColor DarkGray
+                    return 0
+                }
+            } else {
+                Write-Host "  Directory not found" -ForegroundColor DarkGray
+                return 0
+            }
+        } catch {
+            Write-Host "  Directory not found" -ForegroundColor DarkGray
+            return 0
+        }
+    }
+    
+    # Choco Cache (package nupkg files)
+    $totalFreed += Clear-DirectoryCache -Name "Choco Cache" -Path "$env:ChocolateyInstall\cache" -ClearCommand { Remove-Item -Path "$env:ChocolateyInstall\cache\*" -Recurse -Force -ErrorAction SilentlyContinue }
     
     # Scoop Cache
-    Write-Host "Clearing Scoop Cache..." -ForegroundColor Yellow
-    $totalFreed += Get-DirectorySize "$env:USERPROFILE\scoop\cache"
-    scoop cache rm *
+    $totalFreed += Clear-DirectoryCache -Name "Scoop Cache" -Path "$env:USERPROFILE\scoop\cache" -ClearCommand { scoop cache rm * }
     
     # Stremio Cache
-    Write-Host "Clearing Stremio Cache..." -ForegroundColor Yellow
-    $totalFreed += Get-DirectorySize "$env:APPDATA\stremio\stremio-server\stremio-cache"
-    Remove-Item -Path "$env:APPDATA\stremio\stremio-server\stremio-cache" -Recurse -Force -ErrorAction SilentlyContinue
+    $totalFreed += Clear-DirectoryCache -Name "Stremio Cache" -Path "$env:APPDATA\stremio\stremio-server\stremio-cache" -ClearCommand { Remove-Item -Path "$env:APPDATA\stremio\stremio-server\stremio-cache\*" -Recurse -Force -ErrorAction SilentlyContinue }
     
     # Kdenlive Cache
-    Write-Host "Clearing Kdenlive Cache..." -ForegroundColor Yellow
-    $totalFreed += Get-DirectorySize "$env:LOCALAPPDATA\kdenlive\cache"
-    Remove-Item -Path "$env:LOCALAPPDATA\kdenlive\cache" -Recurse -ErrorAction SilentlyContinue
+    $totalFreed += Clear-DirectoryCache -Name "Kdenlive Cache" -Path "$env:LOCALAPPDATA\kdenlive\cache" -ClearCommand { Remove-Item -Path "$env:LOCALAPPDATA\kdenlive\cache\*" -Recurse -Force -ErrorAction SilentlyContinue }
     
     # UV Cache
-    Write-Host "Clearing UV Cache..." -ForegroundColor Yellow
-    if (Get-Command uv -ErrorAction SilentlyContinue) {
-        try {
-            $uvCacheOutput = uv cache dir 2>$null
-            if ($uvCacheOutput) {
-                $totalFreed += Get-DirectorySize $uvCacheOutput
-            }
-        } catch {}
-    }
-    uv cache clean
+    $totalFreed += Clear-CommandCache -Name "UV Cache" -CommandName "uv" -GetCacheDirCommand { uv cache dir } -ClearCommand { uv cache clean }
     
     # Pip Cache
-    Write-Host "Clearing Pip Cache..." -ForegroundColor Yellow
-    if (Get-Command pip -ErrorAction SilentlyContinue) {
-        try {
-            $pipCacheDir = pip cache dir 2>$null
-            if ($pipCacheDir) {
-                $totalFreed += Get-DirectorySize $pipCacheDir
-            }
-        } catch {}
-    }
-    pip cache purge
+    $totalFreed += Clear-CommandCache -Name "Pip Cache" -CommandName "pip" -GetCacheDirCommand { pip cache dir } -ClearCommand { pip cache purge }
     
     # Windows Prefetch
-    Write-Host "Clearing Windows Prefetch..." -ForegroundColor Yellow
-    $totalFreed += Get-DirectorySize "$env:SystemRoot\Prefetch"
-    Remove-Item -Path "$env:SystemRoot\Prefetch\*" -Force -ErrorAction SilentlyContinue
+    $totalFreed += Clear-DirectoryCache -Name "Windows Prefetch" -Path "$env:SystemRoot\Prefetch" -ClearCommand { Remove-Item -Path "$env:SystemRoot\Prefetch\*" -Force -ErrorAction SilentlyContinue }
     
     # Windows Temp
-    Write-Host "Clearing Windows Temp..." -ForegroundColor Yellow
-    $totalFreed += Get-DirectorySize "$env:SystemRoot\Temp"
-    Remove-Item -Path "$env:SystemRoot\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
+    $totalFreed += Clear-DirectoryCache -Name "Windows Temp" -Path "$env:SystemRoot\Temp" -ClearCommand { Remove-Item -Path "$env:SystemRoot\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue }
     
     # User Temp
-    Write-Host "Clearing User Temp..." -ForegroundColor Yellow
-    $totalFreed += Get-DirectorySize "$env:TEMP"
-    Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
+    $totalFreed += Clear-DirectoryCache -Name "User Temp" -Path $env:TEMP -ClearCommand { Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue }
     
     # IE Cache
-    Write-Host "Clearing Internet Explorer Cache..." -ForegroundColor Yellow
-    $totalFreed += Get-DirectorySize "$env:LOCALAPPDATA\Microsoft\Windows\INetCache"
-    Remove-Item -Path "$env:LOCALAPPDATA\Microsoft\Windows\INetCache\*" -Recurse -Force -ErrorAction SilentlyContinue
+    $totalFreed += Clear-DirectoryCache -Name "Internet Explorer Cache" -Path "$env:LOCALAPPDATA\Microsoft\Windows\INetCache" -ClearCommand { Remove-Item -Path "$env:LOCALAPPDATA\Microsoft\Windows\INetCache\*" -Recurse -Force -ErrorAction SilentlyContinue }
     
     Write-Host "`nCache clearing completed." -ForegroundColor Green
     Write-Host "Total space freed: $([math]::Round($totalFreed, 2)) MB ($([math]::Round($totalFreed / 1024, 2)) GB)" -ForegroundColor Magenta
