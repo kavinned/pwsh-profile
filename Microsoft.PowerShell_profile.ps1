@@ -21,7 +21,7 @@ function slp { Start-Process "C:\Users\User\Desktop\sleep.lnk"; exit }
 
 # Navigation Shortcuts
 function idocs { Set-Location "$HOME\Documents\_Important Documents" }
-function cdocs { Set-Location "$HOME\Documents\_Important Documents\coding" }
+function coding { Set-Location "$HOME\Documents\_Important Documents\coding" }
 function docs { Set-Location "$HOME\Documents" }
 function dtop { Set-Location "$HOME\Desktop" }
 
