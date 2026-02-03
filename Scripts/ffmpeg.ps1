@@ -152,3 +152,29 @@ function getAAC {
         Write-Host "Something went wrong with FFmpeg. Check your input file or installation."
     }
 }
+function ReEnc {
+    param(
+        [string]$file
+    )
+
+    if (-not (Test-Path $file -PathType Leaf)) {
+        Write-Host "File not found" -ForegroundColor Red
+        return
+    }
+
+    $ext = [System.IO.Path]::GetExtension($file).ToLower()
+
+    if ($ext -eq '.mkv') {
+        $outExt = '.mp4'
+    }
+    else {
+        $outExt = '.mkv'
+    }
+
+    $base = [System.IO.Path]::GetFileNameWithoutExtension($file)
+    $output = "$base$outExt"
+
+    Write-Host "→ $output" -ForegroundColor Green
+
+    ffmpeg -i "$file" -c:v hevc_nvenc -cq 18 -c:a aac -rc vbr "$output" -hide_banner -loglevel error
+}

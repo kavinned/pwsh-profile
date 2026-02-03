@@ -97,6 +97,7 @@ function gpush { git push }
 function gcl { param([string]$repo) git clone "$repo" }
 function gcom { param([string]$msg) git add .; git commit -m "$msg" }
 function lazyg { param([string]$msg) git add .; git commit -m "$msg"; git push }
+function gsmudge { $env:GIT_LFS_SKIP_SMUDGE="1" }
 
 # Clipboard
 function cpy { param([string]$text) Set-Clipboard $text }
