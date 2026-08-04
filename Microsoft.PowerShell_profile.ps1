@@ -31,6 +31,12 @@ function open { param([string]$Dir) explorer.exe $Dir }
 function nf { param([string]$name) New-Item -ItemType "file" -Path . -Name $name }
 function mkcd { param([string]$dir) mkdir $dir -Force; Set-Location $dir }
 function unzip { param([string]$file) Expand-Archive -Path $file }
+function resize {
+    if (-not (Test-Path -Path "resized" -PathType Container)) {
+        New-Item -ItemType Directory -Path "resized" | Out-Null
+    }
+    magick mogrify -path resized -resize "1024x1024>" *.*
+}
 
 # System Operations
 function df { Get-Volume }
@@ -147,6 +153,7 @@ function Show-Help {
     Write-Host "docs - Navigate to Documents directory."
     Write-Host "dtop - Navigate to Desktop directory."
     Write-Host "touch <file(s)> - Creates a new file if it doesn't exist."
+	Write-Host "resize - Creates 'resized' directory and resizes all images to long side 1024px"
     Write-Host "open <directory> - Opens a directory in File Explorer."
     Write-Host "nf <name> - Creates a new file with the given name."
     Write-Host "mkcd <directory> - Creates a directory and moves into it."
