@@ -1,23 +1,40 @@
-# Load Oh-My-Posh Theme
-$ProgramFilesX86 = [System.Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
+# Starship Init (Cached execution)
+$starshipCache = "$HOME\.starship-init-cache.ps1"
+$starshipExe   = (Get-Command starship -ErrorAction SilentlyContinue).Source
 
-Invoke-Expression (&starship init powershell)
-
-# Improve PSReadline Autocomplete
-Set-PSReadLineOption -PredictionSource History -PredictionViewStyle ListView -EditMode Windows
-
-# Lazy Load Modules
-Import-Module -Name Terminal-Icons
-if (Get-Module -ListAvailable -Name Microsoft.WinGet.CommandNotFound) {
-    Import-Module -Name Microsoft.WinGet.CommandNotFound
+if ($starshipExe -and (
+        -not (Test-Path $starshipCache) -or
+        (Get-Item $starshipExe).LastWriteTime -gt (Get-Item $starshipCache).LastWriteTime
+    )) {
+    & starship init powershell --print-full-init | Out-File -FilePath $starshipCache -Encoding utf8
 }
-Invoke-Expression (&scoop-search --hook)
+
+if (Test-Path $starshipCache) {
+    . $starshipCache
+}
+
+# Fast PSReadLine Setup
+if (-not [Console]::IsOutputRedirected -and -not [Console]::IsInputRedirected) {
+    Set-PSReadLineOption -PredictionSource History -PredictionViewStyle ListView -EditMode Windows
+} else {
+    Set-PSReadLineOption -PredictionSource None -EditMode Windows
+}
+
+# True Lazy Loading (Defers heavy module loading until shell is idle)
+$null = Register-EngineEvent -SourceIdentifier 'PowerShell.OnIdle' -MaxTriggerCount 1 -Action {
+    Import-Module -Name Terminal-Icons -Global -ErrorAction SilentlyContinue
+    Import-Module -Name Microsoft.WinGet.CommandNotFound -Global -ErrorAction SilentlyContinue
+
+    $scoopHook = & scoop-search --hook
+    if ($scoopHook) {
+        . ([scriptblock]::Create($scoopHook))
+    }
+}
 
 # System Functions
 function shutdown { Start-Process "shutdown.exe" -ArgumentList "-s -t 00" }
 function restart { Start-Process "shutdown.exe" -ArgumentList "-r -t 00" }
 function abort { Start-Process "shutdown.exe" -ArgumentList "-a" }
-function slp { Start-Process "C:\Users\User\Desktop\sleep.lnk"; exit }
 
 # Navigation Shortcuts
 function idocs { Set-Location "$HOME\Documents\_Important Documents" }
@@ -35,8 +52,10 @@ function resize {
     if (-not (Test-Path -Path "resized" -PathType Container)) {
         New-Item -ItemType Directory -Path "resized" | Out-Null
     }
-    magick mogrify -path resized -resize "1024x1024>" *.*
+    mogrify -path resized -resize "1024x1024>" *.jpg *.jpeg *.png *.webp *.tiff
 }
+function fix20 { Get-ChildItem -Filter "*%20*" -File -Recurse | Rename-Item -NewName { $_.Name -replace '%20', '' } }
+function getHash { param([string]$Path) (Get-FileHash -Path $Path).Hash }
 
 # System Operations
 function df { Get-Volume }
@@ -147,13 +166,14 @@ function Show-Help {
     Write-Host "shutdown - Shuts down the computer."
     Write-Host "restart - Restarts the computer."
     Write-Host "abort - Aborts any active shutdown."
-    Write-Host "slp - Activates the sleep shortcut on the desktop."
     Write-Host "idocs - Navigate to _Important Documents directory."
     Write-Host "cdocs - Navigate to coding directory under _Important Documents."
     Write-Host "docs - Navigate to Documents directory."
     Write-Host "dtop - Navigate to Desktop directory."
     Write-Host "touch <file(s)> - Creates a new file if it doesn't exist."
-	Write-Host "resize - Creates 'resized' directory and resizes all images to long side 1024px"
+	Write-Host "resize - Creates 'resized' directory and resizes all images to long side 1024px."
+	Write-Host "fix20 - Replaces all '%20' in filenames in the directory to an empty string ''."
+	Write-Host "getHash - Returns the hash of an input file."
     Write-Host "open <directory> - Opens a directory in File Explorer."
     Write-Host "nf <name> - Creates a new file with the given name."
     Write-Host "mkcd <directory> - Creates a directory and moves into it."
