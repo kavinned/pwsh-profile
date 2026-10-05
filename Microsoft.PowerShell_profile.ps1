@@ -56,6 +56,9 @@ function resize {
 }
 function fix20 { Get-ChildItem -Filter "*%20*" -File -Recurse | Rename-Item -NewName { $_.Name -replace '%20', '' } }
 function getHash { param([string]$Path) (Get-FileHash -Path $Path).Hash }
+function pdf2md($file) {
+	python -c "import pymupdf4llm, pathlib, sys; p = pathlib.Path(sys.argv[1]); p.with_suffix('.md').write_text(pymupdf4llm.to_markdown(str(p)), encoding='utf-8')" $file
+}
 
 # System Operations
 function df { Get-Volume }
@@ -133,6 +136,7 @@ Set-Alias npp "C:\Program Files\Notepad++\notepad++.exe"
 Set-Alias whr where.exe
 Set-Alias pm pnpm
 Set-Alias yn yarn
+Set-Alias cc Clear-Cache
 function ll { Get-ChildItem -Force }
 function lh {
     Get-ChildItem -Force | Select-Object Name,
@@ -162,7 +166,7 @@ function Show-Help {
     
     Write-Host "`nFunctions:"
     Write-Host "------------"
-    Write-Host "Clear-Cache - Clears Windows and User cache directories."
+    Write-Host "Clear-Cache (cc) - Clears Windows and User cache directories."
     Write-Host "shutdown - Shuts down the computer."
     Write-Host "restart - Restarts the computer."
     Write-Host "abort - Aborts any active shutdown."
@@ -174,6 +178,7 @@ function Show-Help {
 	Write-Host "resize - Creates 'resized' directory and resizes all images to long side 1024px."
 	Write-Host "fix20 - Replaces all '%20' in filenames in the directory to an empty string ''."
 	Write-Host "getHash - Returns the hash of an input file."
+	Write-Host "pdf2md - Converts a PDF file to a Markdown file."
     Write-Host "open <directory> - Opens a directory in File Explorer."
     Write-Host "nf <name> - Creates a new file with the given name."
     Write-Host "mkcd <directory> - Creates a directory and moves into it."
