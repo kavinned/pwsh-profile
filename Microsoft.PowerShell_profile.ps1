@@ -1,16 +1,20 @@
+#Requires -Version 7.0
+
+$profileTimer = [System.Diagnostics.Stopwatch]::StartNew()
+
 # Starship Init (Cached execution)
 $starshipCache = "$HOME\.starship-init-cache.ps1"
-$starshipExe   = (Get-Command starship -ErrorAction SilentlyContinue).Source
+$starshipCmd   = Get-Command starship -ErrorAction SilentlyContinue
 
-if ($starshipExe -and (
+if ($starshipCmd -and (
         -not (Test-Path $starshipCache) -or
-        (Get-Item $starshipExe).LastWriteTime -gt (Get-Item $starshipCache).LastWriteTime
+        ($starshipCmd.Source -and (Get-Item $starshipCmd.Source).LastWriteTime -gt (Get-Item $starshipCache -ErrorAction SilentlyContinue).LastWriteTime)
     )) {
     & starship init powershell --print-full-init | Out-File -FilePath $starshipCache -Encoding utf8
 }
 
 if (Test-Path $starshipCache) {
-    . $starshipCache
+    try { . $starshipCache } catch {}
 }
 
 # Fast PSReadLine Setup
@@ -32,22 +36,22 @@ $null = Register-EngineEvent -SourceIdentifier 'PowerShell.OnIdle' -MaxTriggerCo
 }
 
 # System Functions
-function shutdown { Start-Process "shutdown.exe" -ArgumentList "-s -t 00" }
-function restart { Start-Process "shutdown.exe" -ArgumentList "-r -t 00" }
-function abort { Start-Process "shutdown.exe" -ArgumentList "-a" }
+function shutdown { param([Parameter(ValueFromRemainingArguments)]$Args) if ($Args) { shutdown.exe @Args } else { shutdown.exe /s /t 0 } }
+function restart  { param([Parameter(ValueFromRemainingArguments)]$Args) if ($Args) { shutdown.exe @Args } else { shutdown.exe /r /t 0 } }
+function abort    { shutdown.exe /a }
 
 # Navigation Shortcuts
-function idocs { Set-Location "$HOME\Documents\_Important Documents" }
+function idocs  { Set-Location "$HOME\Documents\_Important Documents" }
 function coding { Set-Location "$HOME\Documents\_Important Documents\coding" }
-function docs { Set-Location "$HOME\Documents" }
-function dtop { Set-Location "$HOME\Desktop" }
+function docs   { Set-Location "$HOME\Documents" }
+function dtop   { Set-Location "$HOME\Desktop" }
 
 # File Operations
-function touch { param([string[]]$Files) foreach ($file in $Files) { if (!(Test-Path $file)) { "" | Out-File -FilePath $file; Write-Host "Created: $file" } } }
-function open { param([string]$Dir) explorer.exe $Dir }
+function touch { param([string[]]$Files) foreach ($file in $Files) { if (-not (Test-Path $file)) { [System.IO.File]::Create($file).Dispose(); Write-Host "Created: $file" } } }
+function open { param([string]$Dir = ".") Invoke-Item $Dir }
 function nf { param([string]$name) New-Item -ItemType "file" -Path . -Name $name }
-function mkcd { param([string]$dir) mkdir $dir -Force; Set-Location $dir }
-function unzip { param([string]$file) Expand-Archive -Path $file }
+function mkcd { param([string]$dir) New-Item -ItemType Directory -Path $dir -Force | Out-Null && Set-Location $dir }
+function unzip { param([string]$file, [string]$destination = ".") Expand-Archive -Path $file -DestinationPath $destination }
 function resize {
     if (-not (Test-Path -Path "resized" -PathType Container)) {
         New-Item -ItemType Directory -Path "resized" | Out-Null
@@ -57,32 +61,45 @@ function resize {
 function fix20 { Get-ChildItem -Filter "*%20*" -File -Recurse | Rename-Item -NewName { $_.Name -replace '%20', '' } }
 function getHash { param([string]$Path) (Get-FileHash -Path $Path).Hash }
 function pdf2md($file) {
-	python -c "import pymupdf4llm, pathlib, sys; p = pathlib.Path(sys.argv[1]); p.with_suffix('.md').write_text(pymupdf4llm.to_markdown(str(p)), encoding='utf-8')" $file
+    python -c "import pymupdf4llm, pathlib, sys; p = pathlib.Path(sys.argv[1]); p.with_suffix('.md').write_text(pymupdf4llm.to_markdown(str(p)), encoding='utf-8')" $file
+}
+function cleanmp4 {
+    param(
+        [Parameter(Position = 0)]
+        [string]$File,
+        [Alias('a')]
+        [switch]$All,
+        [Alias('o')]
+        [switch]$Overwrite
+    )
+    $toolArgs = @('-all=', '-ext', 'mp4')
+    if ($Overwrite) { $toolArgs += '-overwrite_original' }
+    if ($All) {
+        $toolArgs += '.'
+    } elseif ($File) {
+        $toolArgs += $File
+    } else {
+        Write-Error "Provide file or pass -a for current directory."
+        return
+    }
+    exiftool @toolArgs
 }
 
 # System Operations
 function df { Get-Volume }
 function sysinfo { Get-ComputerInfo }
 function flushdns { Clear-DnsClientCache; Write-Host "DNS cache flushed" }
-function uptime {
-    if ($PSVersionTable.PSVersion.Major -eq 5) {
-        Get-WmiObject win32_operatingsystem | Select-Object @{Name='LastBootUpTime'; Expression={$_.ConverttoDateTime($_.lastbootuptime)}}
-    } else {
-        net statistics workstation | Select-String "since" | ForEach-Object { $_.ToString().Replace('Statistics since ', '') }
-    }
-}
-function shizuku($args) { 
-adb $args shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.sh
-}
+function uptime { Get-Uptime }
+function shizuku { param([Parameter(ValueFromRemainingArguments)]$AdbArgs) adb @AdbArgs shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.sh }
 function ep { nano $PROFILE }
 function nep { npp $PROFILE }
 function ch { 
-	npp "$($env:APPDATA)\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt"
+    npp "$($env:APPDATA)\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt"
 }
 function source { . $PROFILE }
-function ipa { Invoke-RestMethod -Uri "http://api.ipify.org" }
+function ipa { Invoke-RestMethod -Uri "https://api.ipify.org" }
 function winutil {
-    if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
         Start-Process pwsh.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"& { iwr -useb https://christitus.com/win | iex }`"" -Verb RunAs
         return
     }
@@ -91,7 +108,7 @@ function winutil {
 
 # Process Management
 function admin { param([string]$cmd = "") 
-	$argList = "pwsh.exe -NoExit"
+    $argList = "pwsh.exe -NoExit"
     if ($cmd -ne "") {
         $argList += " -Command $cmd"
     }
@@ -99,23 +116,45 @@ function admin { param([string]$cmd = "")
 }
 function pkill { param([string]$identifier) Stop-Process -Name $identifier -Force }
 function pgrep { param([string]$name) Get-Process -Name $name }
-function pfind { param([int]$port) netstat -ano | Select-String ":$port\\s" }
+function pfind { param([int]$port) Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Select-Object LocalAddress, LocalPort, State, OwningProcess }
 function k9 { param([string]$process) Stop-Process -Name $process -Force }
 
-# Text Processing
-function grep { param([string]$regex, [string]$dir) if ($dir) { Get-ChildItem $dir | Select-String $regex } else { $input | Select-String $regex } }
-function sed { param([string]$file, [string]$find, [string]$replace) (Get-Content $file).replace($find, $replace) | Set-Content $file }
-function which { param([string]$name) Get-Command $name | Select-Object -ExpandProperty Definition }
-function export { param([string]$name, [string]$value) Set-Item -Path "env:$name" -Value $value -Force }
-function head { param([string]$file, [int]$lines=10) Get-Content $file | Select-Object -First $lines }
-function tail { param([string]$file, [int]$lines=10) Get-Content $file | Select-Object -Last $lines }
-function hb { param([string]$text) Invoke-RestMethod -Uri "https://hastebin.com/documents" -Method Post -Body $text | Select-Object -ExpandProperty key }
-function wc {
-    param([Parameter(ValueFromPipeline = $true)][string[]]$in)
-    begin { $sb = "" }
-    process { $sb += "$in`n" }
-    end { ($sb -split "`n").Count - 1 }
+function grep {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0, Mandatory = $true)]
+        [string]$Regex,
+        [Parameter(Position = 1)]
+        [string]$Dir = ".",
+        [Parameter(ValueFromPipeline = $true)]
+        [psobject]$InputObject,
+        [Alias('f', 'r')]
+        [switch]$File
+    )
+    process {
+        if (-not $File -and $null -ne $InputObject) {
+            $text = if ($InputObject -is [System.IO.FileSystemInfo]) { $InputObject.Name } else { "$InputObject" }
+            if ($text -match $Regex) {
+                $InputObject
+            }
+        }
+    }
+    end {
+        if ($File) {
+            if (Test-Path -Path $Dir -PathType Leaf -ErrorAction SilentlyContinue) {
+                Select-String -Path $Dir -Pattern $Regex
+            } else {
+                Get-ChildItem -Path $Dir -File -Recurse -ErrorAction SilentlyContinue | Select-String -Pattern $Regex
+            }
+        }
+    }
 }
+function which { param([string]$name) (Get-Command $name -ErrorAction SilentlyContinue).Source ?? (Get-Command $name -ErrorAction SilentlyContinue).Definition }
+function export { param([string]$name, [string]$value) Set-Item -Path "env:$name" -Value $value -Force }
+function head { param([string]$file, [int]$lines=10) Get-Content -Path $file -TotalCount $lines }
+function tail { param([string]$file, [int]$lines=10) Get-Content -Path $file -Tail $lines }
+function hb { param([string]$text) Invoke-RestMethod -Uri "https://hastebin.com/documents" -Method Post -Body $text | Select-Object -ExpandProperty key }
+function wc { @($input).Count }
 
 # Git Shortcuts
 function gs { git status }
@@ -123,9 +162,9 @@ function ga { git add . }
 function gpull { git pull }
 function gpush { git push }
 function gcl { param([string]$repo) git clone "$repo" }
-function gcom { param([string]$msg) git add .; git commit -m "$msg" }
-function lazyg { param([string]$msg) git add .; git commit -m "$msg"; git push }
-function gsmudge { $env:GIT_LFS_SKIP_SMUDGE="1" }
+function gcom { param([string]$msg) git add . && git commit -m "$msg" }
+function lazyg { param([string]$msg) git add . && git commit -m "$msg" && git push }
+function gsmudge { $env:GIT_LFS_SKIP_SMUDGE = "1" }
 
 # Clipboard
 function cpy { param([string]$text) Set-Clipboard $text }
@@ -161,100 +200,100 @@ function lh {
 
 # Help Function
 function Show-Help {
-    Write-Host "PowerShell Profile Help"
-    Write-Host "======================="
-    
-    Write-Host "`nFunctions:"
-    Write-Host "------------"
-    Write-Host "Clear-Cache (cc) - Clears Windows and User cache directories."
-    Write-Host "shutdown - Shuts down the computer."
-    Write-Host "restart - Restarts the computer."
-    Write-Host "abort - Aborts any active shutdown."
-    Write-Host "idocs - Navigate to _Important Documents directory."
-    Write-Host "cdocs - Navigate to coding directory under _Important Documents."
-    Write-Host "docs - Navigate to Documents directory."
-    Write-Host "dtop - Navigate to Desktop directory."
-    Write-Host "touch <file(s)> - Creates a new file if it doesn't exist."
-	Write-Host "resize - Creates 'resized' directory and resizes all images to long side 1024px."
-	Write-Host "fix20 - Replaces all '%20' in filenames in the directory to an empty string ''."
-	Write-Host "getHash - Returns the hash of an input file."
-	Write-Host "pdf2md - Converts a PDF file to a Markdown file."
-    Write-Host "open <directory> - Opens a directory in File Explorer."
-    Write-Host "nf <name> - Creates a new file with the given name."
-    Write-Host "mkcd <directory> - Creates a directory and moves into it."
-    Write-Host "unzip <file> - Extracts contents from a zip file."
-    Write-Host "df - Displays information about disk volumes."
-    Write-Host "compressmp4 - Compresses mp4 files in a directory"
-    Write-Host "webpconv - Converts file to webp."
-    Write-Host "2Gif - Converts file to gif."
-    Write-Host "sysinfo - Displays system information."
-    Write-Host "flushdns - Clears the DNS client cache."
-    Write-Host "uptime - Displays the system uptime."
-    Write-Host "shizuku <args> - Executes the Shizuku command with ADB."
-    Write-Host "ep - Opens the profile file using Nano."
-    Write-Host "nep - Opens the profile file using Notepad++."
-    Write-Host "ch - Opens the console history file in Notepad++."
-    Write-Host "source - Reloads the profile script."
-    Write-Host "ipa - Displays the public IP address."
-    Write-Host "winutil - Executes a script from Chris Titus Tech."
+    @'
+PowerShell Profile Help
+=======================
 
-    Write-Host "`nProcess Management:"
-    Write-Host "--------------------"
-    Write-Host "admin <cmd> - Runs a command as an administrator."
-    Write-Host "pkill <identifier> - Kills a process by name."
-    Write-Host "pgrep <name> - Searches for processes by name."
-    Write-Host "pfind <port> - Finds processes listening on a given port."
-    Write-Host "k9 <process> - Kills a process by name."
+Functions:
+------------
+Clear-Cache (cc) - Clears Windows and User cache directories.
+shutdown [args] - Shuts down computer (defaults to -s -t 0).
+restart [args] - Restarts computer (defaults to -r -t 0).
+abort - Aborts active shutdown.
+idocs - Navigate to _Important Documents directory.
+coding - Navigate to coding directory under _Important Documents.
+docs - Navigate to Documents directory.
+dtop - Navigate to Desktop directory.
+touch <file(s)> - Creates new file(s) if not existing.
+resize - Creates 'resized' directory and resizes images to 1024px.
+fix20 - Replaces '%20' in filenames with empty string.
+getHash - Returns hash of input file.
+pdf2md - Converts PDF file to Markdown.
+cleanmp4 [file] [-a] [-o] - Strips metadata from mp4 via exiftool (-a all in dir, -o overwrite).
+open <dir> - Opens directory via default handler.
+nf <name> - Creates new file with given name.
+mkcd <dir> - Creates directory and enters it.
+unzip <file> [dest] - Extracts contents of zip file.
+df - Displays disk volumes.
+sysinfo - Displays system information.
+flushdns - Clears DNS client cache.
+uptime - Displays system uptime.
+shizuku [args] - Executes Shizuku command with ADB.
+ep - Opens profile in Nano.
+nep - Opens profile in Notepad++.
+ch - Opens console history in Notepad++.
+source - Reloads profile.
+ipa - Displays public IP address.
+winutil - Runs Chris Titus Tech winutil script.
 
-    Write-Host "`nText Processing:"
-    Write-Host "----------------"
-    Write-Host "grep <regex> <directory> - Searches files matching a regex in a directory."
-    Write-Host "sed <file> <find> <replace> - Replaces text in a file."
-    Write-Host "which <command> - Displays the full path of a command."
-    Write-Host "export <name> <value> - Sets an environment variable."
-    Write-Host "head <file> <lines> - Displays the first <lines> lines of a file."
-    Write-Host "tail <file> <lines> - Displays the last <lines> lines of a file."
-    Write-Host "hb <text> - Uploads text to Hastebin and returns the URL."
+Process Management:
+--------------------
+admin <cmd> - Runs command in elevated terminal.
+pkill <name> - Kills process by name.
+pgrep <name> - Searches processes by name.
+pfind <port> - Finds processes listening on port.
+k9 <name> - Kills process by name.
 
-    Write-Host "`nGit Shortcuts:"
-    Write-Host "----------------"
-    Write-Host "gs - Displays the status of the git repository."
-    Write-Host "ga - Stages all changes for commit."
-    Write-Host "gc <message> - Commits staged changes with a message."
-    Write-Host "gp - Pushes changes to the remote repository."
-    Write-Host "gcl <repository> - Clones a git repository."
-    Write-Host "gcom <message> - Stages, commits, and pushes changes."
-    Write-Host "lazyg <message> - Stages, commits, and pushes changes with a single message."
+Text Processing:
+----------------
+grep <regex> [dir] [-File|-f|-r] - Filters pipeline. Only searches files when -File flag passed.
+sed <file> <find> <replace> - Regex replaces text in file.
+which <cmd> - Displays command path or definition.
+export <name> <value> - Sets environment variable.
+head <file> [lines] - First lines of file.
+tail <file> [lines] - Last lines of file.
+hb <text> - Uploads text to Hastebin.
+wc - Counts piped lines.
 
-    Write-Host "`nClipboard:"
-    Write-Host "-----------"
-    Write-Host "cpy <text> - Copies text to the clipboard."
-    Write-Host "pst - Pastes text from the clipboard."
+Git Shortcuts:
+----------------
+gs - git status
+ga - git add .
+gpull - git pull
+gpush - git push
+gcl <repo> - git clone
+gcom <msg> - git add . && git commit -m <msg>
+lazyg <msg> - git add . && git commit -m <msg> && git push
+gsmudge - Sets GIT_LFS_SKIP_SMUDGE=1
 
-    Write-Host "`nAliases:"
-    Write-Host "---------"
-    Write-Host "npp - Opens Notepad++."
-    Write-Host "whr - Finds the path of a command."
-    Write-Host "pm - Alias for pnpm."
-    Write-Host "yn - Alias for yarn."
-    Write-Host "ll - List all files including hidden "
-    Write-Host "lh - Long listing of files"
+Clipboard:
+-----------
+cpy <text> - Copies text to clipboard.
+pst - Pastes text from clipboard.
+
+Aliases:
+---------
+npp - Notepad++
+whr - where.exe
+pm - pnpm
+yn - yarn
+cc - Clear-Cache
+ll - List files including hidden
+lh - Long listing of files
+'@ -split "`r?`n"
 }
 
-Write-Host "Use 'Show-Help' to display help"
-
-# Imports
 # Auto-import all .ps1 files from Scripts directory
-$scriptPaths = @(
-    "$($env:USERPROFILE)\Documents\PowerShell\Scripts",
-    "$($env:OneDrive)\Documents\PowerShell\Scripts"
-)
+$profileDir = if ($PSScriptRoot) { $PSScriptRoot } elseif ($PROFILE) { Split-Path -Parent $PROFILE } else { "$HOME\Documents\PowerShell" }
+$scriptsDir = Join-Path -Path $profileDir -ChildPath 'Scripts'
+if (Test-Path -Path $scriptsDir) {
+    Get-ChildItem -Path $scriptsDir -Filter '*.ps1' -File | ForEach-Object { . $_.FullName }
+}
 
-if ($PSVersionTable.PSEdition -eq 'Core') {
-	foreach ($path in $scriptPaths) {
-		if (Test-Path $path) {
-			Get-ChildItem -Path $path -Filter "*.ps1" | ForEach-Object { . $_.FullName }
-			break
-		}
-	}
+if ($profileTimer) {
+    $profileTimer.Stop()
+    if (-not [Console]::IsOutputRedirected -and -not [Console]::IsInputRedirected) {
+        Write-Host "Use 'Show-Help' for help. Profile loaded in $($profileTimer.ElapsedMilliseconds)ms." -ForegroundColor DarkGray
+    }
+    Remove-Variable profileTimer -ErrorAction SilentlyContinue
 }
