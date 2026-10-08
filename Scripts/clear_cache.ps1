@@ -96,11 +96,6 @@ function Clear-Cache {
         }
     }
     
-    # Choco Cache
-    if ($env:ChocolateyInstall) {
-        $totalFreed += Clear-DirectoryCache -Name "Choco Cache" -Path "$env:ChocolateyInstall\cache" -ClearCommand { Remove-Item -Path "$env:ChocolateyInstall\cache\*" -Recurse -Force -ErrorAction SilentlyContinue }
-    }
-    
     # Scoop Cache
     if (Test-Path "$env:USERPROFILE\scoop\cache" -ErrorAction SilentlyContinue) {
         $totalFreed += Clear-DirectoryCache -Name "Scoop Cache" -Path "$env:USERPROFILE\scoop\cache" -ClearCommand { scoop cache rm * }

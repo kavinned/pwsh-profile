@@ -85,6 +85,25 @@ function cleanmp4 {
     exiftool @toolArgs
 }
 
+# Python / UV Tooling
+function Set-UvCacheDrive {
+    $script:uvDrive ??= (Get-Command uv.exe -CommandType Application -ErrorAction SilentlyContinue)?.Source?.Substring(0, 2)
+    $currDrive = $PWD.Drive?.Name ? "$($PWD.Drive.Name):" : $null
+    if ($currDrive -and $script:uvDrive -and ($currDrive -ne $script:uvDrive)) {
+        $env:UV_CACHE_DIR = Join-Path $PWD.Drive.Root '.uv-cache'
+    } else {
+        Remove-Item env:UV_CACHE_DIR -ErrorAction SilentlyContinue
+    }
+}
+function uv {
+    Set-UvCacheDrive
+    if ($MyInvocation.ExpectingInput) { $input | uv.exe @args } else { uv.exe @args }
+}
+function uvx {
+    Set-UvCacheDrive
+    if ($MyInvocation.ExpectingInput) { $input | uvx.exe @args } else { uvx.exe @args }
+}
+
 # System Operations
 function df { Get-Volume }
 function sysinfo { Get-ComputerInfo }
@@ -220,6 +239,8 @@ fix20 - Replaces '%20' in filenames with empty string.
 getHash - Returns hash of input file.
 pdf2md - Converts PDF file to Markdown.
 cleanmp4 [file] [-a] [-o] - Strips metadata from mp4 via exiftool (-a all in dir, -o overwrite).
+uv [args] - uv wrapper with per-drive cache.
+uvx [args] - uvx wrapper with per-drive cache.
 open <dir> - Opens directory via default handler.
 nf <name> - Creates new file with given name.
 mkcd <dir> - Creates directory and enters it.
