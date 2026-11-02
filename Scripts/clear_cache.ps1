@@ -127,7 +127,8 @@ function Clear-Cache {
     
     # UV Cache
     $totalFreed += Clear-CommandCache -Name "UV Cache" -CommandName "uv" -GetCacheDirsCommand {
-        Get-PSDrive -PSProvider FileSystem | ForEach-Object { Join-Path -Path $_.Root -ChildPath '.uv-cache' }
+        Get-PSDrive -PSProvider FileSystem | Where-Object Name -ne 'C' | ForEach-Object { Join-Path -Path $_.Root -ChildPath '.uv-cache' }
+        Join-Path -Path $env:LOCALAPPDATA -ChildPath 'uv\cache'
         uv cache dir
     } -ClearCommand { param($dir) uv cache clean --cache-dir $dir }
 
