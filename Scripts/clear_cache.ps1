@@ -58,38 +58,52 @@ function Clear-Cache {
         param(
             [string]$Name,
             [string]$CommandName,
-            [scriptblock]$GetCacheDirCommand,
+            [scriptblock]$GetCacheDirsCommand,
             [scriptblock]$ClearCommand
         )
-        
+
         Write-Host "Clearing $Name..." -ForegroundColor Yellow
-        
+
         if (-not (Get-Command $CommandName -ErrorAction SilentlyContinue)) {
             Write-Host "  $CommandName not installed" -ForegroundColor DarkGray
             return 0
         }
-        
+
         try {
-            $cacheDir = & $GetCacheDirCommand 2>$null
-            if ([string]::IsNullOrWhiteSpace($cacheDir) -or -not (Test-Path $cacheDir -ErrorAction SilentlyContinue)) {
+            $cacheDirs = @(& $GetCacheDirsCommand 2>$null |
+                Where-Object { $_ -and (Test-Path -LiteralPath $_ -ErrorAction SilentlyContinue) } |
+                Select-Object -Unique)
+            if ($cacheDirs.Count -eq 0) {
                 Write-Host "  Directory not found" -ForegroundColor DarkGray
                 return 0
             }
 
-            $before = Get-DirectorySize $cacheDir
-            if ($before -le 0) {
-                Write-Host "  Cache already empty" -ForegroundColor DarkGray
-                return 0
-            }
+            $total = 0
+            foreach ($cacheDir in $cacheDirs) {
+                $before = Get-DirectorySize $cacheDir
+                if ($before -le 0) {
+                    Write-Host "  $cacheDir already empty" -ForegroundColor DarkGray
+                    continue
+                }
 
-            if ($PSCmdlet.ShouldProcess($cacheDir, "Clean $CommandName cache")) {
-                & $ClearCommand | Out-Null
-                $after = Get-DirectorySize $cacheDir
-                $freed = [math]::Max(0, [math]::Round($before - $after, 2))
-                Write-Host "  Cleared $freed MB" -ForegroundColor Green
-                return $freed
+                if ($PSCmdlet.ShouldProcess($cacheDir, "Clean $CommandName cache")) {
+                    $sw = [Diagnostics.Stopwatch]::StartNew()
+                    $job = Start-ThreadJob -ScriptBlock { param($cmd, $dir) & $cmd $dir } -ArgumentList $ClearCommand, $cacheDir
+                    while ($job.State -in 'NotStarted', 'Running') {
+                        Write-Progress -Activity "Cleaning $Name cache" -Status "Elapsed $([int]$sw.Elapsed.TotalSeconds)s - $cacheDir (waits if another $CommandName process holds the lock)" -PercentComplete -1
+                        Start-Sleep -Milliseconds 250
+                    }
+                    Write-Progress -Activity "Cleaning $Name cache" -Completed
+                    Receive-Job -Job $job | Out-Null
+                    Remove-Job -Job $job
+
+                    $after = Get-DirectorySize $cacheDir
+                    $freed = [math]::Max(0, [math]::Round($before - $after, 2))
+                    Write-Host "  Cleared $freed MB - $cacheDir" -ForegroundColor Green
+                    $total += $freed
+                }
             }
-            return 0
+            return $total
         } catch {
             Write-Host "  Directory not found" -ForegroundColor DarkGray
             return 0
@@ -112,10 +126,13 @@ function Clear-Cache {
     }
     
     # UV Cache
-    $totalFreed += Clear-CommandCache -Name "UV Cache" -CommandName "uv" -GetCacheDirCommand { uv cache dir } -ClearCommand { uv cache clean }
-    
+    $totalFreed += Clear-CommandCache -Name "UV Cache" -CommandName "uv" -GetCacheDirsCommand {
+        Get-PSDrive -PSProvider FileSystem | ForEach-Object { Join-Path -Path $_.Root -ChildPath '.uv-cache' }
+        uv cache dir
+    } -ClearCommand { param($dir) uv cache clean --cache-dir $dir }
+
     # Pip Cache
-    $totalFreed += Clear-CommandCache -Name "Pip Cache" -CommandName "pip" -GetCacheDirCommand { pip cache dir } -ClearCommand { pip cache purge }
+    $totalFreed += Clear-CommandCache -Name "Pip Cache" -CommandName "pip" -GetCacheDirsCommand { pip cache dir } -ClearCommand { pip cache purge }
     
     # Windows Prefetch
     if ($env:SystemRoot) {

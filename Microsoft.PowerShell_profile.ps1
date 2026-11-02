@@ -87,9 +87,8 @@ function cleanmp4 {
 
 # Python / UV Tooling
 function Set-UvCacheDrive {
-    $script:uvDrive ??= (Get-Command uv.exe -CommandType Application -ErrorAction SilentlyContinue)?.Source?.Substring(0, 2)
-    $currDrive = $PWD.Drive?.Name ? "$($PWD.Drive.Name):" : $null
-    if ($currDrive -and $script:uvDrive -and ($currDrive -ne $script:uvDrive)) {
+    $currDrive = $PWD.Drive?.Name
+    if ($currDrive -and ($currDrive -ne 'C')) {
         $env:UV_CACHE_DIR = Join-Path $PWD.Drive.Root '.uv-cache'
     } else {
         Remove-Item env:UV_CACHE_DIR -ErrorAction SilentlyContinue
@@ -195,6 +194,7 @@ Set-Alias whr where.exe
 Set-Alias pm pnpm
 Set-Alias yn yarn
 Set-Alias cc Clear-Cache
+Set-Alias nload win-nload
 function ll { Get-ChildItem -Force }
 function lh {
     Get-ChildItem -Force | Select-Object Name,
